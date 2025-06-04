@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Notifications</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="p-4">
+  <nav class="navbar navbar-expand-lg navbar-light bg-white border rounded shadow-sm mb-4">
+    <div class="container-fluid">
+      <a class="navbar-brand fw-bold" href="index.html">Fetter</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item"><a class="nav-link" href="index.html">Home</a></li>
+          <li class="nav-item"><a class="nav-link" href="message.html">Message</a></li>
+          <li class="nav-item"><a class="nav-link" href="profile.html">Profile</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <h2>All Notifications</h2>
+  <div id="notifications" class="list-group"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabaseClient.js"></script> <!-- Must define: const supabase = createClient(...) -->
+
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        const container = document.getElementById('notifications');
+
+        if (userError || !userData?.user) {
+          console.error('No authenticated user:', userError);
+          container.innerHTML = '<p class="text-muted">Please log in to view notifications.</p>';
+          return;
+        }
+
+        const uid = userData.user.id;
+
+        const { data: notifications, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', uid)
+          .order('created_at', { ascending: false });
+
+        if (error || !notifications || notifications.length === 0) {
+          container.innerHTML = '<p class="text-muted">No notifications found.</p>';
+          return;
+        }
+
+        container.innerHTML = notifications.map(n => {
+          const linkTarget = n.comment_id
+            ? `home.html#comment-${n.comment_id}`
+            : `home.html#post-${n.post_id}`;
+
+          return `
+            <a href="${linkTarget}" data-id="${n.id}" class="list-group-item list-group-item-action ${n.is_read ? '' : 'list-group-item-warning'}">
+              <div>
+                <small>${n.message}</small><br/>
+                <small class="text-muted">${new Date(n.created_at).toLocaleString()}</small>
+              </div>
+            </a>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error('Unexpected error:', err);
+        document.getElementById('notifications').innerHTML =
+          '<p class="text-danger">An error occurred while loading notifications.</p>';
+      }
+    });
+
+    // Mark notification as read on click
+    document.getElementById('notifications').addEventListener('click', async (e) => {
+      const item = e.target.closest('.list-group-item');
+      if (item?.dataset?.id) {
+        await supabase
+          .from('notifications')
+          .update({ is_read: true })
+          .eq('id', item.dataset.id);
+      }
+    });
+  </script>
+</body>
+</html>
