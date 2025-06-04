@@ -10,7 +10,7 @@
   <style>
 
     body {
-      background: #d2e4b98c;
+      background: #ebecea8c;
       padding: 50px;
     }
     #user-list {
@@ -51,17 +51,17 @@
 }
 
 .btn-log {
-  background: #9fd6c1;
+  background: #bde9d6;
 }
 .btn-send{ 
-  background: #9fd6c1;
+  background: #bde9d6;
 }
 .btn-post{
-  background: #9fd6c1;
+  background: #bde9d6;
 }
 
 .btn-comm{
-  background: #9fd6c1;
+  background: #bde9d6;
 }
 
   </style>
@@ -78,15 +78,23 @@
 
     <div class="collapse navbar-collapse" id="navbarNav">
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-        <li class="nav-item"><a class="nav-link" href="index.html">Home</a></li>
-        <li class="nav-item"><a class="nav-link" href="message.html">Message</a></li>
-        <li class="nav-item"><a class="nav-link" href="profile.html">Profile</a></li>
-        <li class="nav-item"><a class="nav-link" href="notification.html">Notifications</a></li>
+        <li class="nav-item"><a class="nav-link" href="index.html"><strong>Home</strong> </a></li>
+        <li class="nav-item"><a class="nav-link" href="message.html"><strong>Message</strong> </a></li>
+        <li class="nav-item"><a class="nav-link" href="profile.html"><strong>Profile</strong> </a></li>
+        <li class="nav-item position-relative">
+          <a class="nav-link" href="notification.html"><strong>Notifications</strong>
+             
+            <span id="notificationCount" class="badge bg-danger ms-1" style="font-size: 0.75em;">0</span>
+          </a>
+          <ul id="notification-list" class="notification-list list-unstyled p-2 bg-white border rounded shadow-sm mt-3"></ul>
+        </li>
+
+
       </ul>
 
       <div class="d-flex align-items-center gap-3">
       
-        <a href="#" class="btn btn-log mb-4" id="logoutBtn">Logout</a>
+        <a href="#" class="btn btn-log mb-4" id="logoutBtn"><strong>Logout</strong> </a>
 
         <!-- Profile picture -->
         <img id="profile-pic" src="" alt="Profile Picture" class="rounded-circle" width="40" height="40" style="object-fit: cover; display: none;" />
@@ -104,7 +112,7 @@
         <h2 class="mb-4" id="welcome-msg">Welcome</h2>
 
         <!-- Send Message Modal Trigger -->
-        <button id="openMessageModalBtn" class="btn btn-send mb-4">Send Message</button>
+        <button id="openMessageModalBtn" class="btn btn-send mb-4"><strong>Send Message</strong> </button>
 
         <!-- Modal -->
         <div class="modal fade" id="messageModal" tabindex="-1" aria-labelledby="messageModalLabel" aria-hidden="true">
@@ -133,10 +141,10 @@
         <div class="mb-3">
           <textarea class="form-control" id="post-content" rows="3" placeholder="What's on your mind?"></textarea>
         </div>
-        <button class="btn btn-post mb-4" id="postBtn">Post</button>
+        <button class="btn btn-post mb-4" id="postBtn"><strong>Post</strong> </button>
 
         <!-- Post Feed -->
-        <h4>Posts</h4>
+        <h4><strong>Posts</strong> </h4>
         <div id="post-feed" class="mt-3"></div>
       </div>
 
@@ -149,7 +157,7 @@
         <input id="search-username" class="form-control me-2" placeholder="Search username..." />
         <button id="searchBtn" class="btn btn-outline-primary">Search</button>
       </div>
-        <h4>Users Signed Up</h4>
+        <h5>Peoples you may know</h5>
         <div id="user-list" class="list-group"></div>
       </div>
     </div>
@@ -306,7 +314,7 @@ async function loadPosts() {
 
           <div class="mt-3">
             <textarea class="form-control mb-2 comment-input" placeholder="Write a comment..." data-post-id="${post.id}"></textarea>
-            <button class="btn btn-sm btn-comm submit-comment-btn" data-post-id="${post.id}">Comment</button>
+            <button class="btn btn-sm btn-comm submit-comment-btn" data-post-id="${post.id}"><strong>Comment</strong></button>
           </div>
 
           ${commentHtml}
@@ -454,18 +462,23 @@ function subscribeToNotifications(userId) {
 
 
 function initModal() {
-  const modal = new bootstrap.Modal(document.getElementById('messageModal'));
+  const modalEl = document.getElementById('messageModal');
+  const modal = new bootstrap.Modal(modalEl);
+  const toInput = document.getElementById('to');
+  const msgInput = document.getElementById('msg');
+  const errorDiv = document.getElementById('modal-error');
+  const sendBtn = document.getElementById('sendMsgBtn');
+
   document.getElementById('openMessageModalBtn').addEventListener('click', () => {
-    document.getElementById('to').value = '';
-    document.getElementById('msg').value = '';
-    document.getElementById('modal-error').textContent = '';
+    toInput.value = '';
+    msgInput.value = '';
+    errorDiv.textContent = '';
     modal.show();
   });
 
-  document.getElementById('sendMsgBtn').addEventListener('click', async () => {
-    const to = document.getElementById('to').value.trim();
-    const msg = document.getElementById('msg').value.trim();
-    const errorDiv = document.getElementById('modal-error');
+  sendBtn.addEventListener('click', async () => {
+    const to = toInput.value.trim();
+    const msg = msgInput.value.trim();
     errorDiv.textContent = '';
 
     if (!to || !msg) {
@@ -473,32 +486,42 @@ function initModal() {
       return;
     }
 
-    const { data: recipient, error: recipientError } = await supabase
-      .from('users').select('id').eq('username', to).single();
+    try {
+      const { data: recipient, error: recipientError } = await supabase
+        .from('users').select('id').eq('username', to).single();
 
-    if (recipientError || !recipient) {
-      errorDiv.textContent = "Recipient not found.";
-      return;
+      if (recipientError || !recipient) {
+        errorDiv.textContent = "Recipient not found.";
+        return;
+      }
+
+      const { data: currentUser, error: userError } = await supabase.auth.getUser();
+      if (userError || !currentUser) {
+        errorDiv.textContent = "You are not authenticated.";
+        return;
+      }
+
+      const { error: messageError } = await supabase.from('messages').insert({
+        from_id: currentUser.user.id,
+        to_id: recipient.id,
+        content: msg,
+        is_read: false,
+        created_at: new Date().toISOString()
+      });
+
+      if (messageError) {
+        errorDiv.textContent = "Failed to send message.";
+      } else {
+        modal.hide();
+        alert("Message sent successfully!");
+      }
+    } catch (err) {
+      console.error("Unexpected error:", err);
+      errorDiv.textContent = "An unexpected error occurred.";
     }
-
-    const { data: currentUser, error: userError } = await supabase.auth.getUser();
-    if (userError || !currentUser) {
-      errorDiv.textContent = "User not authenticated.";
-      return;
-    }
-
-    const { error } = await supabase.from('messages').insert({
-      from_id: currentUser.user.id,
-      to_id: recipient.id,
-      content: msg,
-      is_read: false,
-      created_at: new Date().toISOString()
-    });
-
-    if (error) errorDiv.textContent = "Failed to send.";
-    else modal.hide();
   });
 }
+
 
 async function main() {
   const user = await checkAuth();
